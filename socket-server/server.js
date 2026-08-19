@@ -1,4 +1,6 @@
 const { createServer } = require("http");
+const express = require("express");
+const cors = require("cors");
 const { Server } = require("socket.io");
 const httpProxy = require("http-proxy");
 
@@ -37,6 +39,19 @@ console.log("  - Socket.IO Port:", SOCKET_PORT);
 console.log("  - Client URL:", CLIENT_URL);
 console.log("  - Allowed Origins:", ALLOWED_ORIGINS);
 
+const app = express();
+
+// Enable CORS for ALL HTTP routes & Preflight OPTIONS requests
+app.use(cors({
+  origin: true,
+  credentials: true,
+  methods: ["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+}));
+
+// Handle OPTIONS preflight for any path immediately
+app.options("*", cors());
+
 // Create proxy to Next.js backend server with Host header rewrite for Vercel
 const proxy = httpProxy.createProxyServer({
   target: NEXT_SERVER,
@@ -59,39 +74,20 @@ proxy.on("proxyRes", (proxyRes, req, res) => {
   proxyRes.headers["access-control-allow-headers"] = "Content-Type, Authorization, X-Requested-With, Accept, Origin";
 });
 
-const httpServer = createServer((req, res) => {
-  const origin = req.headers.origin || "*";
-
-  console.log(`[HTTP Proxy] ${req.method} ${req.url} from ${origin}`);
-
-  // Handle CORS Preflight (OPTIONS) requests immediately with 204 No Content
-  if (req.method === "OPTIONS") {
-    res.writeHead(204, {
-      "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Credentials": "true",
-      "Access-Control-Allow-Methods": "GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin",
-      "Content-Length": "0",
-    });
-    res.end();
-    return;
-  }
-
-  // Proxy HTTP requests to Next.js backend server
+// Proxy HTTP requests to Next.js API server
+app.use((req, res) => {
+  console.log(`[HTTP Proxy] ${req.method} ${req.url} from ${req.headers.origin || 'unknown'}`);
   proxy.web(req, res, (err) => {
     if (err) {
       console.error("Proxy error:", err.message || err);
       if (!res.headersSent) {
-        res.writeHead(502, {
-          "Content-Type": "text/plain",
-          "Access-Control-Allow-Origin": origin,
-          "Access-Control-Allow-Credentials": "true",
-        });
-        res.end(`Bad Gateway - Next.js server not available at ${NEXT_SERVER}`);
+        res.status(502).send(`Bad Gateway - Next.js server not available at ${NEXT_SERVER}`);
       }
     }
   });
 });
+
+const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
   pingTimeout: 60000,   // 60s timeout before considering socket dead (handles tab throttling)
@@ -187,7 +183,7 @@ io.on("connection", (socket) => {
 });
 
 httpServer.listen(SOCKET_PORT, () => {
-  console.log(`✅ Socket.IO & Proxy Server running on port ${SOCKET_PORT}`);
+  console.log(`✅ Socket.IO & Express Proxy Server running on port ${SOCKET_PORT}`);
   console.log(`✅ Proxying HTTP API requests to ${NEXT_SERVER} (Host: ${targetHost})`);
 });
 
