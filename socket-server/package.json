@@ -1,0 +1,15 @@
+{
+  "name": "socket-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Real-time Socket.IO WebSocket server and HTTP proxy",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "http-proxy": "^1.18.1",
+    "socket.io": "^4.8.3"
+  }
+}
