@@ -2,29 +2,26 @@ const { createServer } = require("http");
 const { Server } = require("socket.io");
 const httpProxy = require("http-proxy");
 
-// Ensure protocol prefix on NEXT_SERVER URL
-let NEXT_SERVER = process.env.NEXT_SERVER_URL || "http://localhost:3000";
-if (NEXT_SERVER && !NEXT_SERVER.startsWith("http://") && !NEXT_SERVER.startsWith("https://")) {
-  NEXT_SERVER = `https://${NEXT_SERVER}`;
-}
-NEXT_SERVER = NEXT_SERVER.replace(/\/$/, ""); // Strip trailing slash
+// Clean and format origin strings
+const sanitizeUrl = (urlStr) => {
+  if (!urlStr) return "";
+  let cleaned = urlStr.trim().replace(/^['"]|['"]$/g, "").replace(/\/$/, "");
+  if (cleaned && !cleaned.startsWith("http://") && !cleaned.startsWith("https://")) {
+    cleaned = `https://${cleaned}`;
+  }
+  return cleaned;
+};
 
+// Environment variables
+let NEXT_SERVER = sanitizeUrl(process.env.NEXT_SERVER_URL || "http://localhost:3000");
 const SOCKET_PORT = process.env.PORT || 3001;
-
-let CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-CLIENT_URL = CLIENT_URL.replace(/\/$/, "");
+let CLIENT_URL = sanitizeUrl(process.env.CLIENT_URL || "http://localhost:5173");
 
 const rawOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(",") 
   : [CLIENT_URL, NEXT_SERVER, "http://localhost:5173", "http://localhost:3000"];
 
-const ALLOWED_ORIGINS = rawOrigins.map(origin => {
-  let cleaned = origin.trim().replace(/\/$/, "");
-  if (cleaned && !cleaned.startsWith("http://") && !cleaned.startsWith("https://")) {
-    cleaned = `https://${cleaned}`;
-  }
-  return cleaned;
-});
+const ALLOWED_ORIGINS = rawOrigins.map(origin => sanitizeUrl(origin)).filter(Boolean);
 
 console.log("🚀 Socket.IO Server Configuration:");
 console.log("  - Next.js API:", NEXT_SERVER);
@@ -32,7 +29,7 @@ console.log("  - Socket.IO Port:", SOCKET_PORT);
 console.log("  - Client URL:", CLIENT_URL);
 console.log("  - Allowed Origins:", ALLOWED_ORIGINS);
 
-// Create proxy to Next.js server
+// Create proxy to Next.js backend server
 const proxy = httpProxy.createProxyServer({
   target: NEXT_SERVER,
   ws: true,
@@ -43,10 +40,8 @@ const proxy = httpProxy.createProxyServer({
 const httpServer = createServer((req, res) => {
   const origin = req.headers.origin;
 
-  // Set CORS headers for all proxied API requests
-  if (origin && (ALLOWED_ORIGINS.includes(origin) || ALLOWED_ORIGINS.includes(origin + "/"))) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  } else if (origin) {
+  // Set robust CORS headers on proxy server
+  if (origin) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   } else {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -79,7 +74,7 @@ const io = new Server(httpServer, {
   pingTimeout: 60000,   // 60s timeout before considering socket dead (handles tab throttling)
   pingInterval: 25000,  // 25s ping interval
   cors: {
-    origin: ALLOWED_ORIGINS,
+    origin: true,       // Dynamically reflect requesting origin with credentials
     methods: ["GET", "POST"],
     credentials: true,
   },
