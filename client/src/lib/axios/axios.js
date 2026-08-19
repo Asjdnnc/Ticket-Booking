@@ -2,8 +2,20 @@ import axios from "axios";
 import { SLICE_NAMES } from "../../constants/enums";
 import { errorToast } from "../toast";
 
-const axios_instance = axios.create({
-  baseURL: `${import.meta.env.VITE_DEPLOYED_BACKEND_HOSTNAME}`,
+const getBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_DEPLOYED_BACKEND_HOSTNAME;
+  
+  if (!envUrl || envUrl === "undefined") {
+    return "http://localhost:3001";
+  }
+
+  // Strip trailing /api or trailing slash so relative endpoints like "/api/seats" format cleanly
+  const cleaned = envUrl.replace(/\/api\/?$/, "").replace(/\/$/, "");
+  return cleaned;
+};
+
+export const axios_instance = axios.create({
+  baseURL: getBaseUrl(),
   headers: {
     "Content-Type": "application/json",
   },
@@ -12,7 +24,9 @@ const axios_instance = axios.create({
 axios_instance.interceptors.request.use(
   (config) => {
     const token =
-      JSON.parse(localStorage.getItem(SLICE_NAMES.USER))?.accessToken || null;
+      localStorage.getItem("ticket_token") ||
+      JSON.parse(localStorage.getItem(SLICE_NAMES.USER) || "{}")?.accessToken ||
+      null;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -32,11 +46,9 @@ axios_instance.interceptors.response.use(
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-        errorToast("Login expired. Please login again.");
-        return Promise.reject(error);
-    }
+      errorToast("Login expired. Please login again.");
       return Promise.reject(error);
+    }
+    return Promise.reject(error);
   },
 );
-
-export { axios_instance };
