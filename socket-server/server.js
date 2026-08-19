@@ -17,6 +17,13 @@ let NEXT_SERVER = sanitizeUrl(process.env.NEXT_SERVER_URL || "http://localhost:3
 const SOCKET_PORT = process.env.PORT || 3001;
 let CLIENT_URL = sanitizeUrl(process.env.CLIENT_URL || "http://localhost:5173");
 
+let targetHost = "localhost";
+try {
+  targetHost = new URL(NEXT_SERVER).host;
+} catch (e) {
+  console.warn("Could not parse host from NEXT_SERVER:", NEXT_SERVER);
+}
+
 const rawOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(",") 
   : [CLIENT_URL, NEXT_SERVER, "http://localhost:5173", "http://localhost:3000"];
@@ -25,15 +32,21 @@ const ALLOWED_ORIGINS = rawOrigins.map(origin => sanitizeUrl(origin)).filter(Boo
 
 console.log("🚀 Socket.IO Server Configuration:");
 console.log("  - Next.js API:", NEXT_SERVER);
+console.log("  - Target Host Header:", targetHost);
 console.log("  - Socket.IO Port:", SOCKET_PORT);
 console.log("  - Client URL:", CLIENT_URL);
 console.log("  - Allowed Origins:", ALLOWED_ORIGINS);
 
-// Create proxy to Next.js backend server
+// Create proxy to Next.js backend server with Host header rewrite for Vercel
 const proxy = httpProxy.createProxyServer({
   target: NEXT_SERVER,
   ws: true,
   changeOrigin: true,
+  autoRewrite: true,
+  hostRewrite: targetHost,
+  headers: {
+    host: targetHost,
+  },
   secure: false, // Prevent SSL certificate rejection on serverless proxy targets
 });
 
@@ -48,6 +61,8 @@ proxy.on("proxyRes", (proxyRes, req, res) => {
 
 const httpServer = createServer((req, res) => {
   const origin = req.headers.origin || "*";
+
+  console.log(`[HTTP Proxy] ${req.method} ${req.url} from ${origin}`);
 
   // Handle CORS Preflight (OPTIONS) requests immediately with 204 No Content
   if (req.method === "OPTIONS") {
@@ -173,7 +188,7 @@ io.on("connection", (socket) => {
 
 httpServer.listen(SOCKET_PORT, () => {
   console.log(`✅ Socket.IO & Proxy Server running on port ${SOCKET_PORT}`);
-  console.log(`✅ Proxying HTTP API requests to ${NEXT_SERVER}`);
+  console.log(`✅ Proxying HTTP API requests to ${NEXT_SERVER} (Host: ${targetHost})`);
 });
 
 // Graceful shutdown
