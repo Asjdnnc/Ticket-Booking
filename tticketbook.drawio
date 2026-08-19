@@ -1,0 +1,107 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36" version="28.2.8">
+  <diagram name="Page-1" id="0wZ3tRGSLg8ud9uNU1o9">
+    <mxGraphModel dx="1216" dy="818" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- User Actor -->
+        <mxCell id="zuDLvCW5gHS87H4H9J01-1" value="User Browser" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="20" y="250" width="30" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- React Client -->
+        <mxCell id="zuDLvCW5gHS87H4H9J01-3" value="React Client&#10;(Vite SPA)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#232F3E;strokeColor=#ffffff;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="255" width="80" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- User -> Client Arrow -->
+        <mxCell id="zuDLvCW5gHS87H4H9J01-4" value="" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="zuDLvCW5gHS87H4H9J01-1" target="zuDLvCW5gHS87H4H9J01-3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Socket.IO Proxy Server -->
+        <mxCell id="node-socket" value="Socket.IO &amp;&#10;HTTP Proxy&#10;(Port 3001)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0052CC;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="210" y="360" width="100" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Virtual Queue ZSET -->
+        <mxCell id="node-queue" value="Virtual Waiting Room&#10;(Redis ZSET Queue)" style="shape=hexagon;whiteSpace=wrap;html=1;fillColor=#D97706;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="195" y="130" width="140" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Next.js Backend API -->
+        <mxCell id="zuDLvCW5gHS87H4H9J01-53" value="Next.js 16 API&#10;(Port 3000)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#000000;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="255" width="90" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Redis Cache (Distributed Locks) -->
+        <mxCell id="zuDLvCW5gHS87H4H9J01-5" value="" style="image;sketch=0;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/mscae/Cache_Redis_Product.svg;" vertex="1" parent="1">
+          <mxGeometry x="380" y="258" width="50" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="zuDLvCW5gHS87H4H9J01-10" value="Redis Cache&#10;(SET NX EX 120)" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="310" width="110" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Razorpay Gateway -->
+        <mxCell id="zuDLvCW5gHS87H4H9J01-13" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#EAB308;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="500" y="210" width="110" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="zuDLvCW5gHS87H4H9J01-14" value="Razorpay&#10;Payment Gateway&#10;(UPI, Cards)" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontColor=#FCD34D;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="505" y="255" width="100" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- SQS Queue -->
+        <mxCell id="zuDLvCW5gHS87H4H9J01-35" value="Amazon SQS&#10;Write Queue" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=#ffffff;fillColor=#232F3E;dashed=0;verticalLabelPosition=middle;verticalAlign=bottom;align=center;html=1;whiteSpace=wrap;fontSize=10;fontStyle=1;spacing=3;shape=mxgraph.aws4.productIcon;prIcon=mxgraph.aws4.sqs;" vertex="1" parent="1">
+          <mxGeometry x="660" y="240" width="60" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Background Worker -->
+        <mxCell id="node-worker" value="Background&#10;Worker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0284C7;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="760" y="255" width="80" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- PostgreSQL Database -->
+        <mxCell id="zuDLvCW5gHS87H4H9J01-38" value="" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.database;whiteSpace=wrap;fillColor=#336791;strokeColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="880" y="250" width="50" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="zuDLvCW5gHS87H4H9J01-39" value="PostgreSQL DB&#10;(Neon SSL)" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="850" y="320" width="110" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Connectors & Labels -->
+        <mxCell id="edge-socket-client" value="WebSockets &amp; Proxy" style="endArrow=classic;startArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="zuDLvCW5gHS87H4H9J01-3" target="node-socket">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edge-client-api" value="HTTP REST" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="zuDLvCW5gHS87H4H9J01-3" target="zuDLvCW5gHS87H4H9J01-53">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edge-api-queue" value="Rank Check" style="endArrow=classic;startArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="zuDLvCW5gHS87H4H9J01-53" target="node-queue">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edge-api-redis" value="Atomic Lock" style="endArrow=classic;startArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="zuDLvCW5gHS87H4H9J01-53" target="zuDLvCW5gHS87H4H9J01-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edge-redis-pay" value="Hold (120s TTL)" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="zuDLvCW5gHS87H4H9J01-5" target="zuDLvCW5gHS87H4H9J01-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edge-pay-sqs" value="State Promotion&#10;(HOLD ➔ BOOKED)" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="zuDLvCW5gHS87H4H9J01-13" target="zuDLvCW5gHS87H4H9J01-35">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edge-sqs-worker" value="Poll Messages" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="zuDLvCW5gHS87H4H9J01-35" target="node-worker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edge-worker-db" value="Async Write" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="node-worker" target="zuDLvCW5gHS87H4H9J01-38">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
