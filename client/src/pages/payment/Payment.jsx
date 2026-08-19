@@ -1,146 +1,291 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styles from './Payment.module.scss';
 import { errorToast, successToast } from '../../lib/toast';
 import { useSeats } from '../../api';
+import { useAuth } from '../../context/AuthContext';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
 
 const Payment = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { paymentLoading, payForBooking, releaseHold } = useSeats();
+  const razorpayInstanceRef = useRef(null);
 
   // Get booking data from navigation state
-  const { seats, section, bookingId, expiresIn, userId, count, city } = location.state || {};
+  const {
+    seats,
+    section,
+    bookingId,
+    expiresIn,
+    userId,
+    count,
+    city,
+    movieTitle = "Dune: Part Two",
+    showTime = "03:15 PM",
+    hall = "Screen 1 - PVR Director's Cut",
+    moviePoster = "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop"
+  } = location.state || {};
 
-  // For backward compatibility - if single seat was passed
   const bookedSeats = seats || [];
   const seatCount = count || bookedSeats.length;
 
-  // User form state
-  const [userName, setUserName] = useState('');
-  const [userEmail, setUserEmail] = useState('');
-  const [userAge, setUserAge] = useState('');
+  const [userName, setUserName] = useState(user?.name || '');
+  const [userEmail, setUserEmail] = useState(user?.email || '');
   const [userPhone, setUserPhone] = useState('');
-  const [showPayment, setShowPayment] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('razorpay');
+  const [razorpayPaymentId, setRazorpayPaymentId] = useState(null);
 
-  // Timer state (use expiresIn from backend or default to 120 seconds)
-  const [timeLeft, setTimeLeft] = useState(expiresIn || 120);
-  const [isExpired, setIsExpired] = useState(false);
+  // Timestamp-based hold expiration (persisted in localStorage across page reloads)
+  const [expiresAtTimestamp] = useState(() => {
+    if (!bookingId) return Date.now() + 120000;
+    const storageKey = `seat_hold_expires_${bookingId}`;
+    const savedTimestamp = localStorage.getItem(storageKey);
+    if (savedTimestamp) {
+      return parseInt(savedTimestamp, 10);
+    }
+    const newTimestamp = Date.now() + (expiresIn || 120) * 1000;
+    localStorage.setItem(storageKey, newTimestamp.toString());
+    return newTimestamp;
+  });
+
+  // Calculate actual remaining seconds from real clock timestamp
+  const calculateRemainingSeconds = () => {
+    const remaining = Math.floor((expiresAtTimestamp - Date.now()) / 1000);
+    return remaining > 0 ? remaining : 0;
+  };
+
+  const [timeLeft, setTimeLeft] = useState(calculateRemainingSeconds);
+  const [isExpired, setIsExpired] = useState(() => calculateRemainingSeconds() <= 0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState(null); // null, 'success', 'failed'
+  const [paymentStatus, setPaymentStatus] = useState(null);
 
-  console.log("[Payment] Component loaded with state:", { seats, section, bookingId, expiresIn, userId, count, city });
-
-  // Redirect if no booking data
   useEffect(() => {
     if (!bookedSeats.length || !section || !bookingId) {
-      console.warn("[Payment] Missing required data, redirecting to home");
       navigate('/');
     }
   }, [bookedSeats, section, bookingId, navigate]);
 
-  // Countdown timer - starts immediately when payment page loads
   useEffect(() => {
-    if (timeLeft <= 0 || paymentStatus === 'success') {
-      if (timeLeft <= 0 && !isExpired) {
-        setIsExpired(true);
-        errorToast('Seat reservation expired!');
-        // Release hold for all booked seats
-        bookedSeats.forEach(seat => {
-          releaseHold(seat.seatId, userId);
-        });
+    if (user) {
+      if (!userName) setUserName(user.name);
+      if (!userEmail) setUserEmail(user.email);
+    }
+  }, [user]);
+
+  // Helper to close Razorpay modal safely via SDK & DOM removal
+  const closeRazorpayModal = () => {
+    console.log("[Razorpay] Closing Razorpay window programmatically...");
+    
+    if (razorpayInstanceRef.current) {
+      try {
+        razorpayInstanceRef.current.close();
+      } catch (e) {
+        console.warn("[Razorpay] rzp.close() instance warning:", e);
+      }
+      razorpayInstanceRef.current = null;
+    }
+
+    try {
+      const rzpContainers = document.querySelectorAll(
+        '.razorpay-container, .razorpay-checkout-frame, iframe[src*="razorpay"], div[class*="razorpay"]'
+      );
+      rzpContainers.forEach((el) => {
+        if (el && el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      });
+
+      document.body.style.overflow = '';
+    } catch (e) {
+      console.warn("[Razorpay] DOM element removal warning:", e);
+    }
+  };
+
+  // Realtime clock-based timer loop (resilient to page reloads)
+  useEffect(() => {
+    if (paymentStatus === 'success') {
+      if (bookingId) {
+        localStorage.removeItem(`seat_hold_expires_${bookingId}`);
       }
       return;
     }
 
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
+    const checkTimer = () => {
+      const remaining = calculateRemainingSeconds();
+      setTimeLeft(remaining);
 
-    return () => clearInterval(timer);
-  }, [timeLeft, paymentStatus, isExpired, bookedSeats, userId, releaseHold]);
+      if (remaining <= 0 && !isExpired) {
+        setIsExpired(true);
+        setIsProcessing(false);
+        
+        closeRazorpayModal();
+        errorToast('Time Over! Seat reservation expired.');
 
-  // Format time as MM:SS
+        if (bookingId) {
+          localStorage.removeItem(`seat_hold_expires_${bookingId}`);
+        }
+
+        bookedSeats.forEach(seat => {
+          releaseHold(seat.seatId, userId || user?.id);
+        });
+      }
+    };
+
+    // Run check immediately
+    checkTimer();
+
+    const timerInterval = setInterval(checkTimer, 1000);
+    return () => clearInterval(timerInterval);
+  }, [expiresAtTimestamp, paymentStatus, isExpired, bookedSeats, userId, user, releaseHold, bookingId]);
+
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Get timer class based on time left
   const getTimerClass = () => {
     if (timeLeft <= 30) return `${styles.timer} ${styles.critical}`;
     if (timeLeft <= 60) return `${styles.timer} ${styles.warning}`;
     return styles.timer;
   };
 
-  // Handle user details form submission
-  const handleUserDetailsSubmit = (e) => {
+  const handlePaymentSubmit = async (e) => {
     e.preventDefault();
-    console.log("[Payment] User details submitted:", { userName, userEmail, userAge, userPhone });
-    // Just move to payment screen - data stays in UI only
-    setShowPayment(true);
-  };
-
-  // Handle payment
-  const handlePayment = async () => {
     if (isExpired || isProcessing || paymentLoading) return;
 
     setIsProcessing(true);
-    console.log("[Payment] Processing payment for bookingId:", bookingId);
+    const totalPrice = section.price * seatCount;
 
-    // Generate idempotency key for retry safety
-    const idempotencyKey = `${bookingId}-${Date.now()}`;
+    // Load Razorpay Checkout SDK
+    const resLoaded = await loadRazorpayScript();
+    if (!resLoaded) {
+      errorToast("Razorpay SDK failed to load. Check network connection.");
+      setIsProcessing(false);
+      return;
+    }
 
-    payForBooking(
-      { bookingId },
-      idempotencyKey,
-      (data, error) => {
-        if (error) {
-          console.error("[Payment] Payment error:", error);
-          setPaymentStatus('failed');
-          setIsProcessing(false);
-          return;
-        }
+    try {
+      // 1. Create Razorpay order via Next.js API
+      const orderRes = await fetch(`${API_BASE_URL}/pay/create-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: totalPrice,
+          bookingId,
+        }),
+      });
 
-        console.log("[Payment] Payment success:", data);
-        setPaymentStatus('success');
-        successToast('Payment successful!');
+      const orderData = await orderRes.json();
+      if (!orderRes.ok) {
+        throw new Error(orderData.error || "Failed to create Razorpay Order");
       }
-    );
+
+      // 2. Configure Razorpay Modal Options
+      const options = {
+        key: orderData.keyId || "rzp_test_CinePulseKey123",
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        name: "CinePulse Live Ticket Booking",
+        description: `Booking for ${movieTitle} (${seatCount} Seats)`,
+        image: moviePoster,
+        order_id: orderData.isMock ? undefined : orderData.orderId,
+        handler: function (response) {
+          const payId = response.razorpay_payment_id || `pay_${Date.now()}`;
+          setRazorpayPaymentId(payId);
+
+          // 3. Confirm booking with backend API
+          payForBooking(
+            {
+              bookingId,
+              movieTitle,
+              showTime,
+              hall,
+              moviePoster,
+              razorpay_order_id: response.razorpay_order_id || orderData.orderId,
+              razorpay_payment_id: payId,
+              razorpay_signature: response.razorpay_signature || "mock_sig",
+            },
+            payId,
+            (data, error) => {
+              if (error) {
+                setPaymentStatus('failed');
+                setIsProcessing(false);
+                return;
+              }
+
+              if (bookingId) {
+                localStorage.removeItem(`seat_hold_expires_${bookingId}`);
+              }
+
+              setPaymentStatus('success');
+              successToast('Razorpay payment verified! Booking confirmed.');
+            }
+          );
+        },
+        prefill: {
+          name: userName || user?.name || "Movie Buff",
+          email: userEmail || user?.email || "user@example.com",
+          contact: userPhone || "9876543210",
+        },
+        theme: {
+          color: "#eab308",
+        },
+        modal: {
+          ondismiss: function () {
+            setIsProcessing(false);
+            razorpayInstanceRef.current = null;
+          },
+        },
+      };
+
+      const paymentObject = new window.Razorpay(options);
+      razorpayInstanceRef.current = paymentObject;
+      paymentObject.open();
+    } catch (err) {
+      console.error("[Razorpay Error]", err);
+      errorToast(err.message || "Payment initiation failed");
+      setIsProcessing(false);
+    }
   };
 
-  // Handle retry
-  const handleRetry = () => {
-    console.log("[Payment] Retrying payment...");
-    setPaymentStatus(null);
-    handlePayment();
-  };
-
-  // Handle back to seat selection
   const handleBackToSeats = () => {
-    console.log("[Payment] Navigating back to seat selection");
-    // Release hold manually if not expired and not successful payment
+    if (bookingId) {
+      localStorage.removeItem(`seat_hold_expires_${bookingId}`);
+    }
     if (!isExpired && paymentStatus !== 'success') {
       bookedSeats.forEach(seat => {
-        releaseHold(seat.seatId, userId);
+        releaseHold(seat.seatId, userId || user?.id);
       });
     }
     navigate('/');
   };
 
-  // If no data, show nothing (will redirect)
   if (!bookedSeats.length || !section || !bookingId) {
     return null;
   }
 
-  // Helper to get seat IDs as string
   const getSeatIdsString = () => bookedSeats.map(s => s.seatId).join(', ');
-
-  // Calculate total price
   const totalPrice = section.price * seatCount;
 
-  // Success Screen
+  // SUCCESS CONFIRMATION SCREEN
   if (paymentStatus === 'success') {
     return (
       <div className={styles.container}>
@@ -148,22 +293,29 @@ const Payment = () => {
           <div className={styles.successIcon}>✓</div>
           <h1>Booking Confirmed!</h1>
           <p className={styles.confirmationText}>
-            {seatCount > 1 ? `Your ${seatCount} seats have` : 'Your seat has'} been successfully booked.
+            Your {seatCount > 1 ? `${seatCount} seats have` : 'seat has'} been successfully booked via Razorpay.
           </p>
 
           <div className={styles.ticketDetails}>
             <div className={styles.ticketHeader}>
-              <span className={styles.ticketLabel}>E-TICKET</span>
+              <span className={styles.ticketLabel}>RAZORPAY VERIFIED PASS</span>
               <span className={styles.ticketId}>#{bookingId.substring(0, 8).toUpperCase()}</span>
             </div>
 
             <div className={styles.ticketBody}>
-              <h2>Your Event Ticket</h2>
+              <div className={styles.movieShowcase}>
+                {moviePoster && <img src={moviePoster} alt={movieTitle} className={styles.ticketPoster} />}
+                <div className={styles.movieMeta}>
+                  <h2 className={styles.movieTitle}>{movieTitle}</h2>
+                  <p className={styles.showSlot}>🕒 Allotted Slot: {showTime}</p>
+                  <p className={styles.hall}>📍 Venue: {hall}</p>
+                </div>
+              </div>
 
               <div className={styles.userInfo}>
-                <p><strong>Name:</strong> {userName}</p>
+                <p><strong>Pass Holder:</strong> {userName}</p>
                 <p><strong>Email:</strong> {userEmail}</p>
-                <p><strong>Phone:</strong> {userPhone}</p>
+                {razorpayPaymentId && <p><strong>Razorpay Pay ID:</strong> <code>{razorpayPaymentId}</code></p>}
                 {city && <p><strong>City:</strong> {city}</p>}
               </div>
 
@@ -177,75 +329,90 @@ const Payment = () => {
                   <span className={styles.value}>{getSeatIdsString()}</span>
                 </div>
                 <div className={styles.infoBox}>
-                  <span className={styles.label}>Total</span>
+                  <span className={styles.label}>Total Paid</span>
                   <span className={styles.value}>₹{totalPrice.toLocaleString()}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <button className={styles.doneButton} onClick={handleBackToSeats}>
-            Book Another Seat
-          </button>
+          <div className={styles.successActions}>
+            <button className={styles.profileBtn} onClick={() => navigate('/profile')}>
+              🎟️ View In My Bookings
+            </button>
+            <button className={styles.doneButton} onClick={() => navigate('/')}>
+              Book Another Show
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // User Details Form (shown first)
-  if (!showPayment) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.paymentCard}>
-          {/* Timer */}
-          <div className={getTimerClass()}>
-            <span className={styles.timerLabel}>Time remaining</span>
-            <span className={styles.timerValue}>{formatTime(timeLeft)}</span>
+  // WIDE 2-COLUMN PAYMENT CHECKOUT SCREEN WITH RAZORPAY INTEGRATION
+  return (
+    <div className={styles.container}>
+      <div className={styles.paymentCard}>
+        {/* TIMER BAR */}
+        <div className={getTimerClass()}>
+          <span className={styles.timerLabel}>🕒 Seat Lock Expiry Timer</span>
+          <span className={styles.timerValue}>{formatTime(timeLeft)}</span>
+        </div>
+
+        {isExpired ? (
+          <div className={styles.expiredMessage}>
+            <span className={styles.expiredIcon}>⏰</span>
+            <h2>Time Over! Seat Reservation Expired</h2>
+            <p>Your 2-minute seat hold timer has run out. The Razorpay payment window was automatically closed to prevent double-booking.</p>
+            <button className={styles.backButton} onClick={handleBackToSeats}>
+              Back to Seat Selection
+            </button>
           </div>
-
-          {/* Expired Message */}
-          {isExpired && (
-            <div className={styles.expiredMessage}>
-              <span className={styles.expiredIcon}>⏰</span>
-              <h2>Seat Reservation Expired</h2>
-              <p>Your seat has been released. Please select a new seat.</p>
-              <button className={styles.backButton} onClick={handleBackToSeats}>
-                Back to Seat Selection
-              </button>
-            </div>
-          )}
-
-          {/* User Details Form */}
-          {!isExpired && (
-            <>
-              <h1>Enter Your Details</h1>
-
-              {/* Booking Summary */}
-              <div className={styles.summary}>
-                <h3>{seatCount > 1 ? `${seatCount} Seats Reserved` : 'Seat Reserved'}</h3>
-
-                <div className={styles.seatDetails}>
-                  <div className={styles.detail}>
-                    <span>Section</span>
-                    <span>{section.sectionName}</span>
-                  </div>
-                  <div className={styles.detail}>
-                    <span>{seatCount > 1 ? 'Seats' : 'Seat Number'}</span>
-                    <span>{getSeatIdsString()}</span>
-                  </div>
-                  <div className={styles.detail}>
-                    <span>Status</span>
-                    <span className={styles.holdBadge}>HOLD</span>
-                  </div>
-                  <div className={`${styles.detail} ${styles.total}`}>
-                    <span>Total Amount</span>
-                    <span>₹{totalPrice.toLocaleString()}</span>
-                  </div>
+        ) : (
+          <div className={styles.checkoutLayout}>
+            {/* LEFT COLUMN: MOVIE SHOWCASE & SUMMARY */}
+            <div className={styles.leftCol}>
+              <div className={styles.movieShowcaseCard}>
+                <img src={moviePoster} alt={movieTitle} className={styles.summaryPoster} />
+                <div className={styles.movieInfo}>
+                  <span className={styles.liveTag}>● HELD IN REALTIME</span>
+                  <h2 className={styles.summaryTitle}>{movieTitle}</h2>
+                  <p className={styles.summarySlot}>🕒 {showTime}</p>
+                  <p className={styles.summaryHall}>📍 {hall}</p>
                 </div>
               </div>
 
-              {/* User Form */}
-              <form className={styles.userForm} onSubmit={handleUserDetailsSubmit}>
+              <div className={styles.orderSummaryBox}>
+                <h3>Booking Summary</h3>
+                <div className={styles.summaryRow}>
+                  <span>Section Class</span>
+                  <span>{section.sectionName}</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Seat Number(s)</span>
+                  <span className={styles.seatPill}>{getSeatIdsString()}</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Seats Count</span>
+                  <span>{seatCount} Seat{seatCount > 1 ? 's' : ''}</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Price per Seat</span>
+                  <span>₹{section.price.toLocaleString()}</span>
+                </div>
+                <div className={`${styles.summaryRow} ${styles.totalRow}`}>
+                  <span>Total Payable</span>
+                  <span className={styles.totalPriceVal}>₹{totalPrice.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: PASS HOLDER DETAILS & RAZORPAY PAYMENT GATEWAY */}
+            <div className={styles.rightCol}>
+              <h2>Pass Holder & Razorpay Payment</h2>
+              <p className={styles.formSub}>Secure payment powered by Razorpay (UPI, Credit/Debit Cards, NetBanking)</p>
+
+              <form onSubmit={handlePaymentSubmit} className={styles.checkoutForm}>
                 <div className={styles.formGroup}>
                   <label htmlFor="name">Full Name *</label>
                   <input
@@ -259,27 +426,13 @@ const Payment = () => {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label htmlFor="email">Email *</label>
+                  <label htmlFor="email">Email Address *</label>
                   <input
                     type="email"
                     id="email"
                     value={userEmail}
                     onChange={(e) => setUserEmail(e.target.value)}
-                    placeholder="your.email@example.com"
-                    required
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label htmlFor="age">Age *</label>
-                  <input
-                    type="number"
-                    id="age"
-                    value={userAge}
-                    onChange={(e) => setUserAge(e.target.value)}
-                    placeholder="Enter your age"
-                    min="1"
-                    max="150"
+                    placeholder="name@example.com"
                     required
                   />
                 </div>
@@ -292,124 +445,45 @@ const Payment = () => {
                     value={userPhone}
                     onChange={(e) => setUserPhone(e.target.value)}
                     placeholder="+91 XXXXX XXXXX"
-                    pattern="[0-9+\s-]+"
                     required
                   />
                 </div>
 
-                <button type="submit" className={styles.continueButton}>
-                  Continue to Payment
+                <div className={styles.razorpayBadgeBox}>
+                  <span className={styles.rzpIcon}>💳</span>
+                  <div>
+                    <strong>Razorpay Secured Checkout</strong>
+                    <p>Supports UPI (GPay, PhonePe, Paytm), Cards & NetBanking</p>
+                  </div>
+                </div>
+
+                {paymentStatus === 'failed' && (
+                  <div className={styles.failedMessage}>
+                    <p>Payment transaction failed. Please try again.</p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className={styles.payButton}
+                  disabled={isProcessing || paymentLoading}
+                >
+                  {isProcessing || paymentLoading
+                    ? 'Launching Razorpay Checkout...'
+                    : `Pay ₹${totalPrice.toLocaleString()} via Razorpay ➔`}
                 </button>
 
                 <button
                   type="button"
                   className={styles.cancelButton}
                   onClick={handleBackToSeats}
+                  disabled={isProcessing}
                 >
-                  Cancel Booking
+                  Cancel & Release Seats
                 </button>
               </form>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Payment Screen (shown after user details)
-  return (
-    <div className={styles.container}>
-      <div className={styles.paymentCard}>
-        {/* Timer */}
-        <div className={getTimerClass()}>
-          <span className={styles.timerLabel}>Time remaining</span>
-          <span className={styles.timerValue}>{formatTime(timeLeft)}</span>
-        </div>
-
-        {/* Expired Message */}
-        {isExpired && (
-          <div className={styles.expiredMessage}>
-            <span className={styles.expiredIcon}>⏰</span>
-            <h2>Seat Reservation Expired</h2>
-            <p>Your seat has been released. Please select a new seat.</p>
-            <button className={styles.backButton} onClick={handleBackToSeats}>
-              Back to Seat Selection
-            </button>
-          </div>
-        )}
-
-        {/* Payment Content */}
-        {!isExpired && (
-          <>
-            <h1>Complete Your Payment</h1>
-
-            {/* Booking Summary */}
-            <div className={styles.summary}>
-              <h3>Booking Summary</h3>
-
-              <div className={styles.userDetails}>
-                <p><strong>Name:</strong> {userName}</p>
-                <p><strong>Email:</strong> {userEmail}</p>
-                <p><strong>Phone:</strong> {userPhone}</p>
-              </div>
-
-              <div className={styles.seatDetails}>
-                <div className={styles.detail}>
-                  <span>Section</span>
-                  <span>{section.sectionName}</span>
-                </div>
-                <div className={styles.detail}>
-                  <span>{seatCount > 1 ? 'Seats' : 'Seat Number'}</span>
-                  <span>{getSeatIdsString()}</span>
-                </div>
-                <div className={`${styles.detail} ${styles.total}`}>
-                  <span>Total Amount</span>
-                  <span>₹{totalPrice.toLocaleString()}</span>
-                </div>
-              </div>
             </div>
-
-            {/* Payment Failed Message */}
-            {paymentStatus === 'failed' && (
-              <div className={styles.failedMessage}>
-                <p>Payment failed. Please try again.</p>
-              </div>
-            )}
-
-            {/* Payment Button */}
-            <button
-              className={styles.payButton}
-              onClick={paymentStatus === 'failed' ? handleRetry : handlePayment}
-              disabled={isProcessing}
-            >
-              {isProcessing ? (
-                <>
-                  <span className={styles.buttonSpinner}></span>
-                  Processing...
-                </>
-              ) : paymentStatus === 'failed' ? (
-                'Retry Payment'
-              ) : (
-                `Pay ₹${totalPrice.toLocaleString()}`
-              )}
-            </button>
-
-            <button
-              className={styles.backButtonSmall}
-              onClick={() => setShowPayment(false)}
-              disabled={isProcessing}
-            >
-              ← Back to Details
-            </button>
-
-            <button
-              className={styles.cancelButton}
-              onClick={handleBackToSeats}
-              disabled={isProcessing}
-            >
-              Cancel Booking
-            </button>
-          </>
+          </div>
         )}
       </div>
     </div>

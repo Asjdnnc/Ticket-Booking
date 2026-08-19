@@ -6,8 +6,9 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_SERVER_URL || "http://localhost:3
 console.log("[Socket] Connecting to:", SOCKET_URL);
 
 export const socket = io(SOCKET_URL, {
-  transports: ["websocket"],
+  transports: ["websocket", "polling"],
   reconnection: true,
   reconnectionDelay: 1000,
-  reconnectionAttempts: 10,
+  reconnectionDelayMax: 5000,
+  reconnectionAttempts: Infinity, // Keep auto-reconnecting if user returns to tab
 });

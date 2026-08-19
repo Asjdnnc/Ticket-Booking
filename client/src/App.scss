@@ -2,12 +2,13 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: "Poppins", sans-serif;
+    font-family: "Outfit", "Poppins", sans-serif;
 }
 
 html, body, #root {
     height: 100%;
-    background-color: #0a0a0a;
+    background-color: #0b0d14;
+    color: #f8fafc;
 }
 
 ::-webkit-scrollbar {
@@ -15,12 +16,12 @@ html, body, #root {
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: rgb(60, 60, 60);
+    background: linear-gradient(180deg, #d4af37 0%, #92400e 100%);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-track {
-    background-color: #1a1a1a;
+    background-color: #0f111a;
 }
 
 // Toast customization
@@ -29,33 +30,34 @@ html, body, #root {
 }
 
 .Toastify__toast {
-    background-color: #1a1a1a !important;
-    border: 1px solid #333;
-    border-radius: 8px !important;
+    background-color: #141722 !important;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(212, 175, 55, 0.15);
 }
 
 .Toastify__toast-body {
-    color: #fff;
+    color: #f8fafc;
     font-size: 0.9rem;
+    font-weight: 500;
 }
 
 .Toastify__progress-bar {
-    background: #d4af37 !important;
+    background: linear-gradient(90deg, #fef08a 0%, #d4af37 100%) !important;
 }
 
 .Toastify__toast--success {
-    border-left: 3px solid #16a34a !important;
+    border-left: 4px solid #d4af37 !important;
 }
 
 .Toastify__toast--error {
-    border-left: 3px solid #dc2626 !important;
+    border-left: 4px solid #ef4444 !important;
 }
 
 .Toastify__toast--warning {
-    border-left: 3px solid #d4af37 !important;
+    border-left: 4px solid #f59e0b !important;
 }
 
 .Toastify__toast--info {
-    border-left: 3px solid #3b82f6 !important;
+    border-left: 4px solid #cbd5e1 !important;
 }
-

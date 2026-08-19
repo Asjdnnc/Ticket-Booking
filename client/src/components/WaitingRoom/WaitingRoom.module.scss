@@ -1,0 +1,239 @@
+$black: #0b0d14;
+$dark: #141722;
+$darker: #0f111a;
+$white: #ffffff;
+$gold: #eab308;
+$gold-light: #fef08a;
+$gray: #64748b;
+$gray-light: #94a3b8;
+
+.container {
+  min-height: 100vh;
+  background-color: $black;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+}
+
+.waitingCard {
+  background: $dark;
+  border-radius: 24px;
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 540px;
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(234, 179, 8, 0.18);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.disconnectedBanner {
+  width: 100%;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  margin-bottom: 1.2rem;
+  animation: pulseDot 1.5s infinite;
+}
+
+.headerBadge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: $gold-light;
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  padding: 0.3rem 0.9rem;
+  border-radius: 20px;
+  letter-spacing: 1px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .liveDot {
+    color: #ef4444;
+    font-size: 0.9rem;
+    animation: pulseDot 1.2s infinite;
+  }
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.movieHeader {
+  display: flex;
+  gap: 1.2rem;
+  align-items: center;
+  background: $darker;
+  padding: 1rem 1.2rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+  margin-bottom: 2rem;
+  text-align: left;
+
+  .poster {
+    width: 65px;
+    height: 90px;
+    border-radius: 10px;
+    object-fit: cover;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+  }
+
+  .movieDetails {
+    display: flex;
+    flex-direction: column;
+
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.2rem;
+    }
+
+    .slot {
+      font-size: 0.85rem;
+      color: $gray-light;
+      margin-bottom: 0.4rem;
+    }
+
+    .demandPill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.12);
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      width: max-content;
+    }
+  }
+}
+
+// Queue Circular Progress Ring
+.queueRingContainer {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.8rem;
+
+  .pulseRing {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px dashed #eab308;
+    animation: spinRing 12s linear infinite;
+    box-shadow: 0 0 25px rgba(234, 179, 8, 0.3);
+  }
+
+  .queueRingContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    .rankNumber {
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: #fef08a;
+      line-height: 1;
+      margin-bottom: 0.2rem;
+      text-shadow: 0 0 15px rgba(234, 179, 8, 0.6);
+    }
+
+    .rankLabel {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: $gray-light;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+}
+
+@keyframes spinRing {
+  to { transform: rotate(360deg); }
+}
+
+// Stats Box
+.statsBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: $darker;
+  border-radius: 14px;
+  padding: 1rem 1.5rem;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 1.5rem;
+
+  .statItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .statVal {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .statLab {
+      font-size: 0.75rem;
+      color: $gray-light;
+      font-weight: 600;
+    }
+  }
+
+  .divider {
+    width: 1px;
+    height: 35px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+// Progress Bar
+.progressBarWrapper {
+  width: 100%;
+  height: 6px;
+  background: $darker;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+
+  .progressBarFill {
+    height: 100%;
+    width: 40%;
+    background: linear-gradient(90deg, #eab308 0%, #fef08a 100%);
+    border-radius: 4px;
+    animation: shimmer 1.5s infinite linear;
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+.noticeText {
+  font-size: 0.85rem;
+  color: $gray-light;
+  line-height: 1.5;
+
+  strong {
+    color: #fff;
+  }
+}

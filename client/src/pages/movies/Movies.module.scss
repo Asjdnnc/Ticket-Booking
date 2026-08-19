@@ -1,0 +1,250 @@
+.moviesPage {
+  min-height: 100vh;
+  color: #f8fafc;
+  padding: 2.5rem 1.5rem;
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 3rem;
+
+  h1 {
+    font-size: 2.8rem;
+    font-weight: 900;
+    margin-bottom: 0.4rem;
+    background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #d4af37 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  p {
+    color: #94a3b8;
+    font-size: 1.05rem;
+    margin-bottom: 2rem;
+  }
+}
+
+.searchFilterBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+
+  .searchBox {
+    display: flex;
+    align-items: center;
+    background: #141722;
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-radius: 12px;
+    padding: 0.75rem 1.2rem;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 280px;
+    max-width: 480px;
+
+    &:focus-within {
+      border-color: #d4af37;
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+    }
+
+    input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-size: 0.95rem;
+      width: 100%;
+
+      &::placeholder {
+        color: #64748b;
+      }
+    }
+  }
+
+  .genreFilter {
+    display: flex;
+    gap: 0.6rem;
+
+    .genreBtn {
+      padding: 0.6rem 1.2rem;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        color: #fef08a;
+        border-color: rgba(234, 179, 8, 0.4);
+      }
+
+      &.activeGenre {
+        background: #eab308;
+        color: #0b0d14;
+        font-weight: 700;
+        border-color: #eab308;
+        box-shadow: 0 4px 14px rgba(234, 179, 8, 0.35);
+      }
+    }
+  }
+}
+
+.catalogGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.catalogCard {
+  display: flex;
+  background: #141722;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.3s, box-shadow 0.3s;
+
+  &:hover {
+    border-color: rgba(234, 179, 8, 0.4);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 25px rgba(234, 179, 8, 0.15);
+  }
+
+  .cardImg {
+    width: 260px;
+    height: 100%;
+    min-height: 360px;
+    object-fit: cover;
+  }
+
+  .cardContent {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+
+    .topMeta {
+      display: flex;
+      gap: 0.8rem;
+      margin-bottom: 0.6rem;
+
+      .rating {
+        color: #fef08a;
+        font-weight: 700;
+        font-size: 0.85rem;
+      }
+
+      .category {
+        color: #eab308;
+        font-weight: 700;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+
+    h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.4rem;
+    }
+
+    .genre {
+      color: #94a3b8;
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+
+    .description {
+      color: #cbd5e1;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin-bottom: 1.2rem;
+      max-width: 800px;
+    }
+
+    .castSection {
+      font-size: 0.9rem;
+      color: #94a3b8;
+      margin-bottom: 1.8rem;
+
+      strong {
+        color: #f8fafc;
+      }
+    }
+
+    .showtimesSection {
+      margin-top: auto;
+
+      h4 {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #cbd5e1;
+        margin-bottom: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .showtimePills {
+        display: flex;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+
+        .showtimeBtn {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 0.7rem 1.2rem;
+          background: rgba(234, 179, 8, 0.08);
+          border: 1px solid rgba(234, 179, 8, 0.35);
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.2s;
+
+          .time {
+            color: #fff;
+            font-weight: 700;
+            font-size: 1rem;
+          }
+
+          .type {
+            color: #fef08a;
+            font-size: 0.75rem;
+            margin-top: 2px;
+          }
+
+          &:hover {
+            background: #eab308;
+            border-color: #eab308;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(234, 179, 8, 0.4);
+
+            .time, .type {
+              color: #0b0d14;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 900px) {
+  .catalogCard {
+    flex-direction: column;
+
+    .cardImg {
+      width: 100%;
+      height: 240px;
+    }
+  }
+}
