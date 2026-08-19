@@ -37,23 +37,27 @@ const proxy = httpProxy.createProxyServer({
   secure: false, // Prevent SSL certificate rejection on serverless proxy targets
 });
 
+// Inject CORS headers into proxied response headers
+proxy.on("proxyRes", (proxyRes, req, res) => {
+  const origin = req.headers.origin || "*";
+  proxyRes.headers["access-control-allow-origin"] = origin;
+  proxyRes.headers["access-control-allow-credentials"] = "true";
+  proxyRes.headers["access-control-allow-methods"] = "GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS";
+  proxyRes.headers["access-control-allow-headers"] = "Content-Type, Authorization, X-Requested-With, Accept, Origin";
+});
+
 const httpServer = createServer((req, res) => {
-  const origin = req.headers.origin;
-
-  // Set robust CORS headers on proxy server
-  if (origin) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  } else {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-  }
-
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin");
+  const origin = req.headers.origin || "*";
 
   // Handle CORS Preflight (OPTIONS) requests immediately with 204 No Content
   if (req.method === "OPTIONS") {
-    res.writeHead(204);
+    res.writeHead(204, {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Credentials": "true",
+      "Access-Control-Allow-Methods": "GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin",
+      "Content-Length": "0",
+    });
     res.end();
     return;
   }
@@ -63,7 +67,11 @@ const httpServer = createServer((req, res) => {
     if (err) {
       console.error("Proxy error:", err.message || err);
       if (!res.headersSent) {
-        res.writeHead(502, { "Content-Type": "text/plain" });
+        res.writeHead(502, {
+          "Content-Type": "text/plain",
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Credentials": "true",
+        });
         res.end(`Bad Gateway - Next.js server not available at ${NEXT_SERVER}`);
       }
     }
