@@ -1,8 +1,13 @@
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "../server/.env") });
+require("dotenv").config();
+
 const { createServer } = require("http");
 const express = require("express");
 const cors = require("cors");
 const { Server } = require("socket.io");
 const httpProxy = require("http-proxy");
+const { initRedisKeyspaceSubscriber } = require("./redisSubscriber");
 
 // Clean and format origin strings
 const sanitizeUrl = (urlStr) => {
@@ -100,6 +105,9 @@ const io = new Server(httpServer, {
 });
 
 global.io = io;
+
+// Initialize Redis Keyspace Notifications for server-authoritative seat releases
+initRedisKeyspaceSubscriber(io);
 
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
