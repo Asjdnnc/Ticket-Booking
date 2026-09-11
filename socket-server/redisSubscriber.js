@@ -116,7 +116,32 @@ function initRedisKeyspaceSubscriber(io) {
     }
   });
 
-  return { redisClient, subscriber };
+  // Active hold sweeper: Proactively touches hold keys every 3s to guarantee immediate eviction even on idle databases
+  const sweepInterval = setInterval(async () => {
+    try {
+      const holdKeys = await redisClient.keys("hold:seat:*");
+      for (const key of holdKeys) {
+        const ttl = await redisClient.ttl(key);
+        // If TTL is -2 (does not exist) or -1 (no expire) or 0
+        if (ttl === -2 || ttl === 0) {
+          const seatId = key.replace("hold:seat:", "");
+          const permanentStatus = await redisClient.get(`seat:status:${seatId}`);
+          if (permanentStatus !== "BOOKED") {
+            io.emit("seat:update", {
+              seatId,
+              status: "AVAILABLE",
+              source: "SWEEPER_EXPIRY",
+              ts: Date.now(),
+            });
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore sweep errors
+    }
+  }, 3000);
+
+  return { redisClient, subscriber, sweepInterval };
 }
 
 module.exports = { initRedisKeyspaceSubscriber };
